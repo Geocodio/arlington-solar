@@ -17,7 +17,7 @@
 
             <div v-if="matchedBoundary" class="text-gray-200 text-lg sm:text-2xl my-8 sm:my-16 text-center leading-loose p-4 rounded-lg shadow-lg bg-gray-700">
                 <p>
-                    You address is in <strong>{{ matchedBoundary.CIVIC }}</strong>
+                    Your address is in <strong>{{ matchedBoundary.CIVIC }}</strong>
                     which is <strong>{{ matchedBoundary.ACRES || 'unknown' }} acres.</strong>
                 </p>
 
