@@ -51,7 +51,7 @@
       </vl-layer-tile>
 
       <vl-layer-vector>
-        <vl-source-vector url="/civic-associations-reprojected.geojson"></vl-source-vector>
+        <vl-source-vector :features.sync="features"></vl-source-vector>
         <vl-style-box>
           <vl-style-stroke color="#222" :width="3"></vl-style-stroke>
           <vl-style-fill color="rgba(255,255,255,0.1)"></vl-style-fill>
@@ -95,14 +95,15 @@
         errorMessage: null,
         matchedBoundary: null,
         solarSizeAcres: 476,
+        features: [],
         boundaryLookup: null
       }
     },
     methods: {
         loadBoundaries() {
           axios.get('/civic-associations.geojson').then(response => {
-            this.boundaries = response.data;
-            this.boundaryLookup = new GeoJsonGeometriesLookup(this.boundaries);
+            this.features = response.data.features;
+            this.boundaryLookup = new GeoJsonGeometriesLookup(response.data);
           }).catch(e => {
             this.errorMessage = `Could not load civic association boundaries: ${e.message || e}`;
           });
@@ -122,10 +123,14 @@
 
                   if (this.addressResult) {
                       this.addressResultPoint = [this.addressResult.location.lng, this.addressResult.location.lat];
-                      window.vm.$refs.mapView.animate({
+                      
+                      /*window.vm.$refs.mapView.animate({
                         center: this.addressResultPoint,
                         zoom: 15
-                      });
+                      });*/
+
+                      this.center = this.addressResultPoint;
+                      this.zoom = 15;
 
                       const point = {type: "Point", coordinates: this.addressResultPoint};
                       const match = this.boundaryLookup.getContainers(point);
