@@ -5,7 +5,7 @@
 
             <form v-if="!matchedBoundary && !isLoading" @submit.prevent="addressSubmitted" class="sm:max-w-xl sm:mx-auto my-8">
                 <div class="flex">
-                  <input type="text" class="appearance-none block w-full bg-gray-200 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500" placeholder="2100 Clarendon Blvd, Arlington, VA 22201" v-model="address" />
+                  <input type="text" class="appearance-none block w-full bg-gray-200 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500" placeholder="2100 Clarendon Blvd" v-model="address" />
                   <button type="submit" class="bg-yellow-500 font-bold px-4 py-3 flex-none rounded ml-2">Find me</button>
                 </div>
 
@@ -37,11 +37,19 @@
             </vl-layer-tile>
 
             <vl-layer-vector>
-                <vl-source-vector :features.sync="boundaries"></vl-source-vector>
-                <vl-style-box>
-                    <vl-style-stroke color="#222" :width="3"></vl-style-stroke>
-                    <vl-style-fill color="rgba(255,255,255,0.1)"></vl-style-fill>
-                </vl-style-box>
+                <vl-feature
+                    v-for="(boundary) in boundaries"
+                    :key="boundary.properties.id"
+                    :id="boundary.properties.id"
+                >
+                    <vl-geom-polygon :coordinates="boundary.geometry.coordinates" />
+
+                    <vl-style-box>
+                        <vl-style-stroke color="#222" :width="3"></vl-style-stroke>
+                        <vl-style-fill color="rgba(255,255,255,0.1)"></vl-style-fill>
+                        <vl-style-text v-if="zoom > 13" :text="boundary.properties.CIVIC" font="16px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'"></vl-style-text>
+                    </vl-style-box>
+                </vl-feature>
             </vl-layer-vector>
 
             <vl-layer-vector v-if="farmBoundary">
@@ -50,6 +58,26 @@
 
                     <vl-style-box>
                         <vl-style-fill color="rgba(255, 255, 0, 0.5)"></vl-style-fill>
+                    </vl-style-box>
+                </vl-feature>
+            </vl-layer-vector>
+
+            <vl-layer-vector v-if="farmBoundaryCenter && !addressResult">
+                <vl-feature>
+                    <vl-geom-point :coordinates="[farmBoundaryCenter.longitude, farmBoundaryCenter.latitude]"></vl-geom-point>
+
+                    <vl-style-box>
+                        <vl-style-icon src="/img/solar-panel.png" :anchor="[0.5, 0.5]" :scale="1.0"></vl-style-icon>
+                    </vl-style-box>
+                </vl-feature>
+            </vl-layer-vector>
+
+            <vl-layer-vector v-if="addressResultPoint">
+                <vl-feature>
+                    <vl-geom-point :coordinates="addressResultPoint"></vl-geom-point>
+
+                    <vl-style-box>
+                        <vl-style-icon src="/img/marker.png" :anchor="[0.5, 0.5]" :scale="0.5"></vl-style-icon>
                     </vl-style-box>
                 </vl-feature>
             </vl-layer-vector>
@@ -87,6 +115,25 @@
             } else {
                 return 'roughly';
             }
+        },
+        farmBoundaryCenter() {
+            let location = {
+                latitude: this.center[1],
+                longitude: this.center[0]
+            };
+
+            if (this.matchedBoundary) {
+                const bounds = this.boundaries[0].geometry.coordinates[0].map(item => {
+                    return {
+                        latitude: item[1],
+                        longitude: item[0],
+                    }
+                });
+
+                location = getCenterOfBounds(bounds);
+            }
+
+            return location;
         }
     },
     data () {
@@ -121,13 +168,21 @@
               this.isLoading = true;
               this.errorMessage = null;
 
-              const query = qs.stringify({'q': this.address, 'api_key': '57f15ff4e5ed5dd43213e3d5e5262dfdee5f41f'});
+              const query = qs.stringify({'q': this.address + ' Arlington VA', 'api_key': '57f15ff4e5ed5dd43213e3d5e5262dfdee5f41f'});
 
               axios.get('https://api.geocod.io/v1.4/geocode?' + query).then(response => {
                   this.isLoading = false;
                   this.addressResult = response.data.results[0] || null;
 
                   if (this.addressResult) {
+                      if (this.addressResult.accuracy < 0.8) {
+                        throw new Error('Address does not seem to be valid');
+                      }
+
+                      if (this.addressResult.address_components.city !== 'Arlington' || this.addressResult.address_components.state !== 'VA') {
+                        throw new Error('Could not find address in Arlington, VA');
+                      }
+
                       this.addressResultPoint = [this.addressResult.location.lng, this.addressResult.location.lat];
 
                       const point = {type: "Point", coordinates: this.addressResultPoint};
@@ -157,23 +212,7 @@
             }
         },
         updateSolarFarmBoundary() {
-            let location = {
-                latitude: this.center[1],
-                longitude: this.center[0]
-            };
-
-            if (this.matchedBoundary) {
-                const bounds = this.boundaries[0].geometry.coordinates[0].map(item => {
-                    return {
-                        latitude: item[1],
-                        longitude: item[0],
-                    }
-                });
-
-                location = getCenterOfBounds(bounds);
-            }
-
-            const bounds = getBoundsOfDistance(location, 694);
+            const bounds = getBoundsOfDistance(this.farmBoundaryCenter, 694);
 
             const sw = bounds[0];
             const ne = bounds[1];
