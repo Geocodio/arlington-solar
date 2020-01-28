@@ -8,9 +8,7 @@ Vue.config.productionTip = false
 
 Vue.use(VueLayers)
 
-var app = new Vue({
+new Vue({
   router,
   render: h => h(App)
 }).$mount('#app')
-
-window.vm = app;

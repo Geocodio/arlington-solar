@@ -3,7 +3,7 @@
         <div class="container mx-auto leading-normal">
             <introduction></introduction>
 
-            <form @submit.prevent="addressSubmitted" class="max-w-xl mx-auto my-8">
+            <form v-if="!matchedBoundary && !isLoading" @submit.prevent="addressSubmitted" class="max-w-xl mx-auto my-8">
                 <div class="flex">
                   <input type="text" class="appearance-none block w-full bg-gray-200 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500" placeholder="2100 Clarendon Blvd, Arlington, VA 22201" v-model="address" />
                   <button type="submit" class="bg-yellow-500 font-bold px-4 py-3 flex-none rounded ml-2">Find me</button>
@@ -13,6 +13,8 @@
                 <div v-if="errorMessage" class="text-red-500 font-bold mt-1 rounded">{{ errorMessage }}</div>
             </form>
 
+            <loading v-if="isLoading"></loading>
+
             <div v-if="matchedBoundary" class="text-gray-200 text-2xl my-16 text-center leading-loose p-4 rounded-lg shadow-lg bg-gray-700">
                 <p>
                     You address is in <strong>{{ matchedBoundary.CIVIC }}</strong>
@@ -20,15 +22,15 @@
                 </p>
 
                 <p v-if="matchedBoundary.ACRES > 0" class="text-4xl">
-                    The Arlington solar farm is {{ Math.round(solarSizeAcres / matchedBoundary.ACRES * 10) / 10 }}x the size of <strong>{{ matchedBoundary.CIVIC }}</strong>.
+                    The Arlington solar farm is {{ sizeDescription }} the size of <strong>{{ matchedBoundary.CIVIC }}</strong>.
                 </p>
 
                 <p><a href="/" class="underline text-base text-gray-400">Try a different address?</a></p>
             </div>
         </div>
 
-        <vl-map :load-tiles-while-animating="true" :load-tiles-while-interacting="true" data-projection="EPSG:4326" style="height: 600px" v-if="boundaries.length > 0">
-            <vl-view :zoom.sync="zoom" :center.sync="center" ref="mapView"></vl-view>
+        <vl-map v-if="boundaries.length > 0" ref="map" :controls="false" :load-tiles-while-animating="true" :load-tiles-while-interacting="true" data-projection="EPSG:4326" style="height: 600px">
+            <vl-view :zoom.sync="zoom" :center.sync="center" @created="mapCreated" ref="mapView"></vl-view>
 
             <vl-layer-tile id="geocodio" :opacity="0.2">
                 <vl-source-xyz url="https://tile-cdn.geocod.io/tiles/geocodio/{z}/{x}/{y}.png"></vl-source-xyz>
@@ -63,16 +65,29 @@
   import { getBoundsOfDistance, getCenterOfBounds } from 'geolib'
   import GeoJsonGeometriesLookup from 'geojson-geometries-lookup'
   import Introduction from '../components/Introduction'
+  import Loading from '../components/Loading'
   import EmailForm from '../components/EmailForm'
 
   export default {
     components: {
         'introduction': Introduction,
         'email-form': EmailForm,
+        'loading': Loading,
     },
     mounted() {
       this.loadBoundaries();
       this.updateSolarFarmBoundary();
+    },
+    computed: {
+        sizeDescription() {
+            const size = Math.round(this.solarSizeAcres / this.matchedBoundary.ACRES * 10) / 10;
+
+            if (size !== 1) {
+                return `${size}x`;
+            } else {
+                return 'roughly';
+            }
+        }
     },
     data () {
       return {
@@ -115,11 +130,6 @@
                   if (this.addressResult) {
                       this.addressResultPoint = [this.addressResult.location.lng, this.addressResult.location.lat];
 
-                      /*window.vm.$refs.mapView.animate({
-                        center: this.addressResultPoint,
-                        zoom: 15
-                      });*/
-
                       const point = {type: "Point", coordinates: this.addressResultPoint};
                       const match = this.boundaryLookup.getContainers(point);
 
@@ -131,9 +141,14 @@
                         this.boundaries = this.boundaries.filter(boundary => boundary.properties.CIVIC === this.matchedBoundary.CIVIC);
                       }
 
-                      this.center = this.addressResultPoint;
-                      this.zoom = 15;
                       this.updateSolarFarmBoundary();
+
+                      setTimeout(() => {
+                        this.$refs.mapView.animate({
+                            center: this.addressResultPoint,
+                            zoom: 15
+                        });
+                      }, 250);
                   }
               }).catch(e => {
                   this.isLoading = false;
@@ -142,34 +157,37 @@
             }
         },
         updateSolarFarmBoundary() {
-          let location = {
-            latitude: this.center[1],
-            longitude: this.center[0]
-          };
+            let location = {
+                latitude: this.center[1],
+                longitude: this.center[0]
+            };
 
-          if (this.matchedBoundary) {
-            const bounds = this.boundaries[0].geometry.coordinates[0].map(item => {
-              return {
-                latitude: item[1],
-                longitude: item[0],
-              }
-            });
+            if (this.matchedBoundary) {
+                const bounds = this.boundaries[0].geometry.coordinates[0].map(item => {
+                    return {
+                        latitude: item[1],
+                        longitude: item[0],
+                    }
+                });
 
-            location = getCenterOfBounds(bounds);
-          }
+                location = getCenterOfBounds(bounds);
+            }
 
-          const bounds = getBoundsOfDistance(location, 694);
+            const bounds = getBoundsOfDistance(location, 694);
 
-          const sw = bounds[0];
-          const ne = bounds[1];
+            const sw = bounds[0];
+            const ne = bounds[1];
 
-          this.farmBoundary = [[
-            [sw.longitude, ne.latitude],
-            [ne.longitude, ne.latitude],
-            [ne.longitude, sw.latitude],
-            [sw.longitude, sw.latitude],
-            [sw.longitude, ne.latitude],
-          ]];
+            this.farmBoundary = [[
+                [sw.longitude, ne.latitude],
+                [ne.longitude, ne.latitude],
+                [ne.longitude, sw.latitude],
+                [sw.longitude, sw.latitude],
+                [sw.longitude, ne.latitude],
+            ]];
+        },
+        mapCreated() {
+            this.$refs.map.$map.getInteractions().clear();
         }
     }
   }
