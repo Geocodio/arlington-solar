@@ -43,7 +43,7 @@
         </div>
 
     <vl-map :load-tiles-while-animating="true" :load-tiles-while-interacting="true"
-             data-projection="EPSG:4326" style="height: 800px">
+             data-projection="EPSG:4326" style="height: 800px" v-if="boundaries.length > 0">
       <vl-view :zoom.sync="zoom" :center.sync="center" ref="mapView"></vl-view>
 
       <vl-layer-tile id="geocodio" :opacity="0.2">
@@ -51,23 +51,19 @@
       </vl-layer-tile>
 
       <vl-layer-vector>
-        <vl-source-vector :features.sync="features"></vl-source-vector>
+        <vl-source-vector :features.sync="boundaries"></vl-source-vector>
         <vl-style-box>
           <vl-style-stroke color="#222" :width="3"></vl-style-stroke>
           <vl-style-fill color="rgba(255,255,255,0.1)"></vl-style-fill>
         </vl-style-box>
       </vl-layer-vector>
 
-      <vl-layer-vector>
+      <vl-layer-vector v-if="farmBoundary">
         <vl-feature>
-          <vl-geom-point
-            :coordinates="addressResultPoint || [-77.099113, 38.885484]"
-          ></vl-geom-point>
+          <vl-geom-polygon :coordinates="farmBoundary"></vl-geom-polygon>
 
           <vl-style-box>
-            <vl-style-circle :radius="10 * zoom">
-              <vl-style-fill color="rgba(255, 255, 0, 0.5)"></vl-style-fill>
-            </vl-style-circle>
+            <vl-style-fill color="rgba(255, 255, 0, 0.5)"></vl-style-fill>
           </vl-style-box>
         </vl-feature>
       </vl-layer-vector>
@@ -78,11 +74,13 @@
 <script>
   import axios from 'axios'
   import qs from 'qs'
+  import { getBoundsOfDistance, getCenterOfBounds } from 'geolib'
   import GeoJsonGeometriesLookup from 'geojson-geometries-lookup';
 
   export default {
     mounted() {
       this.loadBoundaries();
+      this.updateSolarFarmBoundary();
     },
     data () {
       return { 
@@ -95,14 +93,15 @@
         errorMessage: null,
         matchedBoundary: null,
         solarSizeAcres: 476,
-        features: [],
-        boundaryLookup: null
+        boundaries: [],
+        boundaryLookup: null,
+        farmBoundary: null
       }
     },
     methods: {
         loadBoundaries() {
           axios.get('/civic-associations.geojson').then(response => {
-            this.features = response.data.features;
+            this.boundaries = response.data.features;
             this.boundaryLookup = new GeoJsonGeometriesLookup(response.data);
           }).catch(e => {
             this.errorMessage = `Could not load civic association boundaries: ${e.message || e}`;
@@ -129,15 +128,20 @@
                         zoom: 15
                       });*/
 
-                      this.center = this.addressResultPoint;
-                      this.zoom = 15;
-
                       const point = {type: "Point", coordinates: this.addressResultPoint};
                       const match = this.boundaryLookup.getContainers(point);
 
                       this.matchedBoundary = match.features.length > 0
                           ? match.features[0].properties
                           : null;
+
+                      if (this.matchedBoundary) {
+                        this.boundaries = this.boundaries.filter(boundary => boundary.properties.CIVIC === this.matchedBoundary.CIVIC);
+                      }
+
+                      this.center = this.addressResultPoint;
+                      this.zoom = 15;
+                      this.updateSolarFarmBoundary();
                   }
               }).catch(e => {
                   this.isLoading = false;
@@ -145,6 +149,36 @@
               });
             }
         },
+        updateSolarFarmBoundary() {
+          let location = {
+            latitude: this.center[1],
+            longitude: this.center[0]
+          };
+
+          if (this.matchedBoundary) {
+            const bounds = this.boundaries[0].geometry.coordinates[0].map(item => {
+              return {
+                latitude: item[1],
+                longitude: item[0],
+              }
+            });
+
+            location = getCenterOfBounds(bounds);
+          }
+
+          const bounds = getBoundsOfDistance(location, 694);
+
+          const sw = bounds[0];
+          const ne = bounds[1];
+
+          this.farmBoundary = [[
+            [sw.longitude, ne.latitude],
+            [ne.longitude, ne.latitude],
+            [ne.longitude, sw.latitude],
+            [sw.longitude, sw.latitude],
+            [sw.longitude, ne.latitude],
+          ]];
+        }
     }
   }
 </script>
