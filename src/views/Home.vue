@@ -1,9 +1,9 @@
 <template>
     <div>
-        <div class="container mx-auto leading-normal">
+        <div class="mx-2 container sm:mx-auto leading-normal">
             <introduction></introduction>
 
-            <form v-if="!matchedBoundary && !isLoading" @submit.prevent="addressSubmitted" class="max-w-xl mx-auto my-8">
+            <form v-if="!matchedBoundary && !isLoading" @submit.prevent="addressSubmitted" class="sm:max-w-xl sm:mx-auto my-8">
                 <div class="flex">
                   <input type="text" class="appearance-none block w-full bg-gray-200 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500" placeholder="2100 Clarendon Blvd, Arlington, VA 22201" v-model="address" />
                   <button type="submit" class="bg-yellow-500 font-bold px-4 py-3 flex-none rounded ml-2">Find me</button>
@@ -15,13 +15,13 @@
 
             <loading v-if="isLoading"></loading>
 
-            <div v-if="matchedBoundary" class="text-gray-200 text-2xl my-16 text-center leading-loose p-4 rounded-lg shadow-lg bg-gray-700">
+            <div v-if="matchedBoundary" class="text-gray-200 text-lg sm:text-2xl my-8 sm:my-16 text-center leading-loose p-4 rounded-lg shadow-lg bg-gray-700">
                 <p>
                     You address is in <strong>{{ matchedBoundary.CIVIC }}</strong>
                     which is <strong>{{ matchedBoundary.ACRES || 'unknown' }} acres.</strong>
                 </p>
 
-                <p v-if="matchedBoundary.ACRES > 0" class="text-4xl">
+                <p v-if="matchedBoundary.ACRES > 0" class="text-2xl sm:text-4xl">
                     The Arlington solar farm is {{ sizeDescription }} the size of <strong>{{ matchedBoundary.CIVIC }}</strong>.
                 </p>
 

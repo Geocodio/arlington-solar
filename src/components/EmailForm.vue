@@ -6,7 +6,7 @@
             <form class="mb-8" name="signup" method="post" data-netlify="true" data-netlify-honeypot="bot-field">
                 <input type="hidden" name="form-name" value="signup" />
 
-                <div class="flex my-2">
+                <div class="sm:flex my-2">
                     <label class="block flex-1 text-gray-200 font-bold">
                         <input class="mr-2" type="checkbox" name="type[]" value="residential">
                         <span class="text-lg">
