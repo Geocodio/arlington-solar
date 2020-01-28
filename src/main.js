@@ -11,7 +11,9 @@ Vue.use(VueLayers)
 
 Vue.use(PortalVue)
 
-new Vue({
+var app = new Vue({
   router,
   render: h => h(App)
 }).$mount('#app')
+
+window.vm = app;

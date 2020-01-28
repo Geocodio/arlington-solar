@@ -39,4 +39,14 @@
 .scale-100 {
   transform: scale(1);
 }
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.rotate-self {
+  animation: spin 7s linear infinite;
+}
 </style>
