@@ -12,6 +12,11 @@
       <strong>We're sorry but this site doesn't work properly without JavaScript enabled. Please enable it to continue.</strong>
     </noscript>
     <div id="app"></div>
+    <form name="signup" netlify netlify-honeypot="bot-field" hidden>
+      <input type="email" name="email" value="" />
+      <input type="checkbox" name="type[]" value="residential" />
+      <input type="checkbox" name="type[]" value="commercial" />
+    </form>
     <!-- built files will be auto injected -->
   </body>
 </html>
